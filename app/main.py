@@ -2,12 +2,22 @@ from flask import Flask, render_template, request, jsonify
 from app.utils import get_ip_info, get_whois_info, get_dns_records, search_username, analyze_website
 from app.optimizer import optimizer
 import time
+import logging
+
+# Configure basic logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/health')
+def health():
+    # Simple health check used by Render
+    return jsonify({"status": "ok"}), 200
 
 @app.route('/ip-lookup')
 def ip_lookup():
@@ -27,35 +37,71 @@ def stats():
 
 @app.route('/api/ip/<ip>')
 def api_ip(ip):
-    time.sleep(1) # Simulate work for progress bar
-    return jsonify(get_ip_info(ip))
+    try:
+        logger.info("IP lookup for %s", ip)
+        time.sleep(0.5)
+        data = get_ip_info(ip)
+        return jsonify(data)
+    except Exception as e:
+        logger.exception("Error in api_ip")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/domain/<domain>')
 def api_domain(domain):
-    time.sleep(1)
-    whois_data = get_whois_info(domain)
-    dns_data = get_dns_records(domain)
-    return jsonify({"whois": whois_data, "dns": dns_data})
+    try:
+        logger.info("Domain lookup for %s", domain)
+        time.sleep(0.5)
+        whois_data = get_whois_info(domain)
+        dns_data = get_dns_records(domain)
+        return jsonify({"whois": whois_data, "dns": dns_data})
+    except Exception as e:
+        logger.exception("Error in api_domain")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/username/<username>')
 def api_username(username):
-    # Since username search takes time, we'll simulate a phased response or just return all
-    time.sleep(1)
-    return jsonify(search_username(username))
+    try:
+        logger.info("Username search for %s", username)
+        time.sleep(0.5)
+        data = search_username(username)
+        return jsonify(data)
+    except Exception as e:
+        logger.exception("Error in api_username")
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/api/analyze/<url>')
+@app.route('/api/analyze/<path:url>')
 def api_analyze(url):
-    time.sleep(1)
-    return jsonify(analyze_website(url))
+    try:
+        logger.info("Analyze url %s", url)
+        time.sleep(0.5)
+        data = analyze_website(url)
+        return jsonify(data)
+    except Exception as e:
+        logger.exception("Error in api_analyze")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/system-stats')
 def api_system_stats():
-    return jsonify(optimizer.get_stats())
+    try:
+        return jsonify(optimizer.get_stats())
+    except Exception as e:
+        logger.exception("Error in api_system_stats")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/optimize', methods=['POST'])
 def api_optimize():
-    msg = optimizer.optimize()
-    return jsonify({"message": msg, "stats": optimizer.get_stats()})
+    try:
+        msg = optimizer.optimize()
+        return jsonify({"message": msg, "stats": optimizer.get_stats()})
+    except Exception as e:
+        logger.exception("Error in api_optimize")
+        return jsonify({"error": str(e)}), 500
+
+# Generic error handler
+@app.errorhandler(500)
+def internal_error(error):
+    logger.exception("Server Error: %s", error)
+    return jsonify({"error": "Internal server error"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
