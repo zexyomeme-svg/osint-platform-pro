@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Image Search - OSINT Platform Pro{% endblock %}
+{% block content %}
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">🖼️ Reverse Image Search</div>
+    <div class="card-body">
+        <form id="imageSearchForm">
+            <div class="form-group">
+                <label>Image URL *</label>
+                <input type="url" id="imageUrl" placeholder="e.g., https://example.com/image.jpg" required>
+            </div>
+            <small style="color: #718096;">Enter full URL of image to search</small>
+            <button type="submit" class="btn btn-primary btn-block" style="margin-top: 1rem;">Search Image</button>
+        </form>
+        <div id="loading" class="loading"><div class="spinner"></div><p>Preparing search...</p></div>
+        <div id="results" class="results"></div>
+    </div>
+</div>
+<script>
+    document.getElementById('imageSearchForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const imageUrl = document.getElementById('imageUrl').value.trim();
+        if (!imageUrl || !imageUrl.startsWith('http')) {
+            showAlert('Valid image URL required', 'warning');
+            return;
+        }
+        document.getElementById('loading').classList.add('show');
+        document.getElementById('results').innerHTML = '';
+        try {
+            const response = await fetch('/api/image-search', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({image_url: imageUrl})
+            });
+            const data = await response.json();
+            document.getElementById('loading').classList.remove('show');
+            if (data.success) {
+                let html = `<h3>Image Search Results</h3><div class="result-item"><h4>Image</h4><p><a href="${data.data.image_url}" target="_blank">${data.data.image_url.substring(0, 60)}...</a></p></div>`;
+                for (const [service, info] of Object.entries(data.data.services)) {
+                    const status = info.available ? '<span class="badge badge-success">Ready</span>' : '<span class="badge badge-danger">Unavailable</span>';
+                    html += `<div class="result-item"><h4>${service}</h4><p>Status: ${status}</p><p><a href="${info.search_url}" target="_blank" class="btn btn-secondary" style="display: inline-block; margin-top: 0.5rem; padding: 0.5rem 1rem;">Search with ${service}</a></p></div>`;
+                }
+                document.getElementById('results').innerHTML = html;
+            } else {
+                showAlert('Error: ' + data.error, 'danger');
+            }
+        } catch (error) {
+            document.getElementById('loading').classList.remove('show');
+            showAlert('Search failed: ' + error.message, 'danger');
+        }
+    });
+</script>
+{% endblock %}

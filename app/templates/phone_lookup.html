@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Phone Lookup - OSINT Platform Pro{% endblock %}
+{% block content %}
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">☎️ Reverse Phone Lookup</div>
+    <div class="card-body">
+        <form id="phoneLookupForm">
+            <div class="form-group">
+                <label>Phone Number *</label>
+                <input type="tel" id="phoneNumber" placeholder="e.g., +1 (555) 123-4567" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Search Phone</button>
+        </form>
+        <div id="loading" class="loading"><div class="spinner"></div><p>Searching...</p></div>
+        <div id="results" class="results"></div>
+    </div>
+</div>
+<script>
+    document.getElementById('phoneLookupForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const phoneNumber = document.getElementById('phoneNumber').value.trim();
+        if (!phoneNumber) {
+            showAlert('Phone number required', 'warning');
+            return;
+        }
+        document.getElementById('loading').classList.add('show');
+        document.getElementById('results').innerHTML = '';
+        try {
+            const response = await fetch('/api/phone-search', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({phone_number: phoneNumber})
+            });
+            const data = await response.json();
+            document.getElementById('loading').classList.remove('show');
+            if (data.success) {
+                let html = `<h3>Phone Lookup Results</h3><div class="result-item"><h4>Phone: ${data.data.formatted}</h4></div>`;
+                for (const [platform, info] of Object.entries(data.data.platforms)) {
+                    const status = info.available ? '<span class="badge badge-success">Available</span>' : '<span class="badge badge-danger">Unavailable</span>';
+                    html += `<div class="result-item"><h4>${platform}</h4><p>Status: ${status}</p><p><a href="${info.url}" target="_blank">Open in ${platform}</a></p></div>`;
+                }
+                document.getElementById('results').innerHTML = html;
+            } else {
+                showAlert('Error: ' + data.error, 'danger');
+            }
+        } catch (error) {
+            document.getElementById('loading').classList.remove('show');
+            showAlert('Search failed: ' + error.message, 'danger');
+        }
+    });
+</script>
+{% endblock %}

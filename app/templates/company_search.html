@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Company Search - OSINT Platform Pro{% endblock %}
+{% block content %}
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">🏢 Company Information Search</div>
+    <div class="card-body">
+        <form id="companySearchForm">
+            <div class="form-group">
+                <label>Company Name *</label>
+                <input type="text" id="companyName" placeholder="e.g., Google, Microsoft, Apple" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Search Company</button>
+        </form>
+        <div id="loading" class="loading"><div class="spinner"></div><p>Searching...</p></div>
+        <div id="results" class="results"></div>
+    </div>
+</div>
+<script>
+    document.getElementById('companySearchForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const companyName = document.getElementById('companyName').value.trim();
+        if (!companyName) {
+            showAlert('Company name required', 'warning');
+            return;
+        }
+        document.getElementById('loading').classList.add('show');
+        document.getElementById('results').innerHTML = '';
+        try {
+            const response = await fetch('/api/company-search', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({company_name: companyName})
+            });
+            const data = await response.json();
+            document.getElementById('loading').classList.remove('show');
+            if (data.success) {
+                let html = `<h3>Company: ${data.data.company_name}</h3>`;
+                for (const [platform, info] of Object.entries(data.data.platforms || {})) {
+                    const status = info.available ? '<span class="badge badge-success">Available</span>' : '<span class="badge badge-danger">Unavailable</span>';
+                    html += `<div class="result-item"><h4>${platform}</h4><p>Status: ${status}</p><p><a href="${info.url}" target="_blank">View on ${platform}</a></p></div>`;
+                }
+                document.getElementById('results').innerHTML = html;
+            } else {
+                showAlert('Error: ' + data.error, 'danger');
+            }
+        } catch (error) {
+            document.getElementById('loading').classList.remove('show');
+            showAlert('Search failed: ' + error.message, 'danger');
+        }
+    });
+</script>
+{% endblock %}

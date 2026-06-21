@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Email Search - OSINT Platform Pro{% endblock %}
+{% block content %}
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">✉️ Email Search & Breach Check</div>
+    <div class="card-body">
+        <form id="emailSearchForm">
+            <div class="form-group">
+                <label>Email Address *</label>
+                <input type="email" id="email" placeholder="e.g., user@example.com" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Search Email</button>
+        </form>
+        <div id="loading" class="loading"><div class="spinner"></div><p>Searching...</p></div>
+        <div id="results" class="results"></div>
+    </div>
+</div>
+<script>
+    document.getElementById('emailSearchForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value.trim();
+        if (!email) {
+            showAlert('Email required', 'warning');
+            return;
+        }
+        document.getElementById('loading').classList.add('show');
+        document.getElementById('results').innerHTML = '';
+        try {
+            const response = await fetch('/api/email-search', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email: email})
+            });
+            const data = await response.json();
+            document.getElementById('loading').classList.remove('show');
+            if (data.success) {
+                let html = `<h3>Email Search Results</h3><div class="result-item"><h4>${data.data.email}</h4></div>`;
+                if (data.data.breaches && data.data.breaches.length > 0) {
+                    html += '<div class="result-item" style="border-left-color: #ff6b6b;"><h4>Breaches Found</h4>';
+                    data.data.breaches.forEach(b => html += `<p>• ${b.Name || b}</p>`);
+                    html += '</div>';
+                }
+                for (const [service, info] of Object.entries(data.data.services || {})) {
+                    const status = info.available ? '<span class="badge badge-success">Available</span>' : '<span class="badge badge-danger">Unavailable</span>';
+                    html += `<div class="result-item"><h4>${service}</h4><p>Status: ${status}</p></div>`;
+                }
+                document.getElementById('results').innerHTML = html;
+            } else {
+                showAlert('Error: ' + data.error, 'danger');
+            }
+        } catch (error) {
+            document.getElementById('loading').classList.remove('show');
+            showAlert('Search failed: ' + error.message, 'danger');
+        }
+    });
+</script>
+{% endblock %}
